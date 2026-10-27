@@ -286,8 +286,56 @@ async function loadProjects(){
 
 async function projects(){
   await loadProjects();
-  const rows=state.projects.length?state.projects.map(p=>`<div class="card project"><div><strong>${esc(p.project_name||p.title||"Untitled Project")}</strong><div class="muted">${esc(p.status||"Analyzed")}</div></div><span class="badge">${esc(p.status||"Ready")}</span></div>`).join(""):`<div class="card"><h3>No projects yet</h3><p class="muted">Create your first animation.</p><button class="btn primary" onclick="createStory()">Create Animation</button></div>`;
-  layout(`<div class="topbar"><div><h1>My Projects</h1><p class="muted">Your animation projects.</p></div><button class="btn primary" onclick="createStory()">+ New</button></div>${rows}`,"projects");
+  const rows=state.projects.length?state.projects.map(p=>{
+    const title=esc(p.project_name||p.title||"Untitled Project");
+    const status=esc(p.status||"Analyzed");
+    const id=esc(p.id||"");
+    const video=p.video_ready && p.video_url
+      ? `<div style="margin-top:14px">
+           <video controls preload="metadata" style="width:100%;max-width:760px;border-radius:12px;background:#000" src="${API}${esc(p.video_url)}"></video>
+           <div class="actions" style="margin-top:10px">
+             <a class="btn primary" href="${API}${esc(p.video_url)}" download="AnimAI_${id}.mp4">⬇ Download MP4</a>
+             <button class="btn secondary" onclick="openProject('${id}')">Project Details</button>
+           </div>
+         </div>`
+      : `<div class="actions" style="margin-top:12px">
+           <button class="btn secondary" onclick="openProject('${id}')">Open Project</button>
+         </div>
+         ${String(p.status||"").toLowerCase()==="completed"
+           ? `<p class="muted" style="margin-top:8px">The project is marked Completed, but the MP4 file is not currently available on the server. Open the project to render it again.</p>`
+           : ""}`;
+    return `<div class="card project" style="margin-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+        <div><strong>${title}</strong><div class="muted" style="margin-top:6px">${status}</div></div>
+        <span class="badge">${p.video_ready ? "Video Ready" : status}</span>
+      </div>${video}
+    </div>`;
+  }).join(""):`<div class="card"><h3>No projects yet</h3><p class="muted">Create your first animation.</p><button class="btn primary" onclick="createStory()">Create Animation</button></div>`;
+  layout(`<div class="topbar"><div><h1>My Projects</h1><p class="muted">Your animation projects. Play or download finished MP4 videos below.</p></div><button class="btn primary" onclick="createStory()">+ New</button></div>${rows}`,"projects");
+}
+
+async function openProject(projectId){
+  try{
+    const p=await api(`/projects/item/${encodeURIComponent(projectId)}`);
+    const title=esc(p.project_name||p.title||"Animation Project");
+    const status=esc(p.status||"Unknown");
+    const video=(p.video_ready && p.video_url)
+      ? `<div class="card" style="margin-top:16px">
+           <h3>🎬 Your finished video</h3>
+           <video controls preload="metadata" style="width:100%;max-width:900px;border-radius:14px;background:#000" src="${API}${esc(p.video_url)}"></video>
+           <div class="actions" style="margin-top:12px"><a class="btn primary" href="${API}${esc(p.video_url)}" download="AnimAI_${esc(projectId)}.mp4">⬇ Download MP4</a><button class="btn secondary" onclick="projects()">Back to My Projects</button></div>
+         </div>`
+      : `<div class="card" style="margin-top:16px">
+           <h3>🎞️ Generate your MP4</h3>
+           <p class="muted">This project has no video file available right now. Upload a JPG, PNG, or WebP scene/character image, then click Generate MP4.</p>
+           <div class="field"><label>Character or scene image</label><input id="productionImage" type="file" accept="image/png,image/jpeg,image/webp"></div>
+           <div class="actions"><button class="btn primary" onclick="startVideoGeneration('${esc(projectId)}')">Generate MP4 →</button><button class="btn secondary" onclick="projects()">Back to My Projects</button></div>
+           <div id="generationStatus" class="muted" style="margin-top:12px"></div><div id="videoResult" style="margin-top:12px"></div>
+         </div>`;
+    layout(`<div class="topbar"><div><h1>${title}</h1><p class="muted">Status: ${status}</p></div><button class="btn secondary" onclick="projects()">← My Projects</button></div>${video}`,"projects");
+  }catch(err){
+    toast("Could not open project: "+err.message);
+  }
 }
 
 function profile(){

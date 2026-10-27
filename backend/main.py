@@ -286,7 +286,14 @@ def list_projects(user_id: int):
         (user_id,)
     ).fetchall()
     conn.close()
-    return [dict(r) for r in rows]
+    projects = []
+    for row in rows:
+        item = dict(row)
+        _, video_path = _safe_project_paths(item["id"])
+        item["video_ready"] = video_path.exists()
+        item["video_url"] = f"/projects/item/{item['id']}/video" if video_path.exists() else None
+        projects.append(item)
+    return projects
 
 @app.get("/projects/item/{project_id}")
 def get_project(project_id: str):
